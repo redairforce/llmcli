@@ -1,0 +1,103 @@
+#!/usr/bin/with-contenv bash
+
+# Git-MCP Service Setup
+# This script sets up the git-mcp service to run automatically
+
+echo "🔧 Setting up Git-MCP service..."
+
+# Ensure git-mcp directory exists and has proper permissions
+if [ ! -d "/config/git-mcp" ]; then
+    echo "📁 Creating git-mcp directory..."
+    mkdir -p /config/git-mcp
+    chown abc:abc /config/git-mcp
+fi
+
+# Clone or update git-mcp repository if needed
+if [ ! -f "/config/git-mcp/package.json" ]; then
+    echo "📦 Cloning git-mcp repository..."
+    cd /config
+    su abc -c "git clone https://github.com/idosal/git-mcp.git"
+    chown -R abc:abc /config/git-mcp
+fi
+
+# Install dependencies if node_modules doesn't exist or is incomplete
+if [ ! -d "/config/git-mcp/node_modules" ] || [ ! -f "/config/git-mcp/node_modules/.package-lock.json" ]; then
+    echo "📦 Installing git-mcp dependencies..."
+    cd /config/git-mcp
+    su abc -c "npm install"
+fi
+
+# Create systemd-style service script for git-mcp
+echo "🔧 Creating git-mcp service script..."
+cat > /config/git-mcp-service.sh << 'EOF'
+#!/bin/bash
+set -e
+
+# Source environment variables
+if [ -f /etc/profile.d/npm-path.sh ]; then
+    source /etc/profile.d/npm-path.sh
+fi
+
+# Set working directory
+cd /config/git-mcp
+
+# Export GitHub token for authentication
+export GITHUB_TOKEN="${GITHUB_TOKEN}"
+
+# Start git-mcp service
+echo "🚀 Starting git-mcp service on localhost:5173"
+exec npm run dev
+EOF
+
+chmod +x /config/git-mcp-service.sh
+chown abc:abc /config/git-mcp-service.sh
+
+# Create supervisor/background service launcher
+echo "🔧 Creating git-mcp service launcher..."
+cat > /config/start-git-mcp.sh << 'EOF'
+#!/bin/bash
+
+# Kill any existing git-mcp processes
+pkill -f "npm run dev" -u abc || true
+pkill -f "react-router dev" -u abc || true
+
+# Wait a moment
+sleep 2
+
+# Start git-mcp service in background as abc user
+echo "🚀 Starting git-mcp service as background daemon..."
+su abc -c 'cd /config/git-mcp && GITHUB_TOKEN="${GITHUB_TOKEN}" nohup npm run dev > /config/git-mcp.log 2>&1 &'
+
+# Wait for service to start
+sleep 3
+
+# Check if service is running
+if curl -s http://localhost:5173 > /dev/null 2>&1; then
+    echo "✅ Git-MCP service started successfully on localhost:5173"
+else
+    echo "⚠️ Git-MCP service may not have started properly"
+    echo "Check logs at: /config/git-mcp.log"
+fi
+EOF
+
+chmod +x /config/start-git-mcp.sh
+
+# Create a simple restart script
+echo "🔧 Creating git-mcp restart script..."
+cat > /config/restart-git-mcp.sh << 'EOF'
+#!/bin/bash
+echo "🔄 Restarting git-mcp service..."
+/config/start-git-mcp.sh
+EOF
+
+chmod +x /config/restart-git-mcp.sh
+chown abc:abc /config/restart-git-mcp.sh
+
+# Start the git-mcp service
+echo "🚀 Starting git-mcp service..."
+/config/start-git-mcp.sh
+
+echo "✅ Git-MCP service setup complete!"
+echo "📍 Service available at: http://localhost:5173"
+echo "📋 Logs available at: /config/git-mcp.log"
+echo "🔄 Restart with: /config/restart-git-mcp.sh"
