@@ -8,6 +8,17 @@ PLAYWRIGHT_ENABLED=${PLAYWRIGHT_MCP_ENABLED:-true}
 if [ "$PLAYWRIGHT_ENABLED" = "true" ]; then
     echo "🎭 Playwright MCP enabled, installing browsers and dependencies"
     
+    # Install Playwright system dependencies first (as root)
+    if command -v playwright >/dev/null 2>&1; then
+        echo "📦 Installing Playwright system dependencies..."
+        playwright install-deps chromium
+        if [ $? -eq 0 ]; then
+            echo "✅ Playwright system dependencies installed"
+        else
+            echo "⚠️ Playwright system dependencies installation failed, continuing..."
+        fi
+    fi
+    
     # Install Playwright browsers for abc user
     if command -v npx >/dev/null 2>&1; then
         echo "📦 Installing Playwright browsers..."
@@ -17,7 +28,7 @@ if [ "$PLAYWRIGHT_ENABLED" = "true" ]; then
             export HOME=/config
             export npm_config_cache=/config/.npm
             cd /config
-            npx playwright install
+            npx playwright install chromium
         "
         
         if [ $? -eq 0 ]; then

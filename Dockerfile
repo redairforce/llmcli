@@ -112,39 +112,24 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright system dependencies (Ubuntu 24.04 compatible)
+# Install minimal browser dependencies for Playwright
 RUN apt-get update && apt-get install -y \
-    # Core browser runtime dependencies
+    # Essential browser dependencies
+    libnss3 \
+    libnspr4 \
     libatk-bridge2.0-0 \
     libdrm2 \
     libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
     libgbm1 \
     libxss1 \
     libasound2 \
-    # Font rendering
+    # Font support
     fonts-liberation \
-    fonts-noto-color-emoji \
-    # GTK dependencies  
-    libgtk-3-0 \
-    # Additional browser dependencies
-    libcairo-gobject2 \
-    libpango-1.0-0 \
-    libatk1.0-0 \
-    libcairo2 \
-    libgdk-pixbuf-2.0-0 \
-    libxcursor1 \
-    libxi6 \
-    libxtst6 \
-    # Chromium-specific
-    libnss3 \
-    libnspr4 \
-    libxfixes3 \
-    # Additional dependencies
-    libvulkan1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright browsers and system dependencies
+# This will be done in the init script to avoid container bloat
+RUN npm install -g playwright@1.55.0
 
 # Install kubectl (latest stable) - AMD64 only
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
