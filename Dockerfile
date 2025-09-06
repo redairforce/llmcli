@@ -112,23 +112,7 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install minimal browser dependencies for Playwright
-RUN apt-get update && apt-get install -y \
-    # Essential browser dependencies
-    libnss3 \
-    libnspr4 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxkbcommon0 \
-    libgbm1 \
-    libxss1 \
-    libasound2 \
-    # Font support
-    fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Playwright browsers and system dependencies
-# This will be done in the init script to avoid container bloat
+# Install Playwright CLI globally - dependencies will be installed at runtime
 RUN npm install -g playwright@1.55.0
 
 # Install kubectl (latest stable) - AMD64 only
