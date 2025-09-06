@@ -1,0 +1,59 @@
+name: Helm Chart Validation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'Chart.yaml'
+      - 'values*.yaml'
+      - 'templates/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Chart.yaml'
+      - 'values*.yaml' 
+      - 'templates/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: 'v3.14.0'
+        
+    - name: Lint Helm Chart
+      run: |
+        helm lint . --strict
+        
+    - name: Template and Validate
+      run: |
+        # Test template rendering with secure values
+        helm template llmcli . -f values.yaml.secure \
+          --set user.password="test123" \
+          --set git.userName="testuser" \
+          --set git.userEmail="test@example.com" \
+          --dry-run
+          
+    - name: Check for secrets in templates
+      run: |
+        # Ensure no hardcoded secrets in templates
+        if grep -r "sk-" templates/ || grep -r "ghp_" templates/ || grep -r "pplx-" templates/ || grep -r "xai-" templates/; then
+          echo "ERROR: Found hardcoded secrets in templates!"
+          exit 1
+        fi
+        echo "✅ No hardcoded secrets found in templates"
+        
+    - name: Validate Chart Dependencies
+      run: |
+        # Check if chart has dependencies and validate them
+        if [ -f Chart.lock ]; then
+          helm dependency update
