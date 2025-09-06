@@ -112,7 +112,7 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright system dependencies (comprehensive list)
+# Install Playwright system dependencies (Ubuntu 24.04 compatible)
 RUN apt-get update && apt-get install -y \
     # Core browser runtime dependencies
     libatk-bridge2.0-0 \
@@ -127,29 +127,22 @@ RUN apt-get update && apt-get install -y \
     # Font rendering
     fonts-liberation \
     fonts-noto-color-emoji \
-    fonts-unifont \
-    # GTK dependencies
+    # GTK dependencies  
     libgtk-3-0 \
-    libgtk-4-1 \
     # Additional browser dependencies
     libcairo-gobject2 \
     libpango-1.0-0 \
     libatk1.0-0 \
     libcairo2 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libxcursor1 \
-    libxcomposite1 \
     libxi6 \
     libxtst6 \
     # Chromium-specific
     libnss3 \
     libnspr4 \
-    libxrandr2 \
-    libgconf-2-4 \
     libxfixes3 \
-    libdrm2 \
-    # Additional dependencies for Ubuntu 24.04
-    libu2f-udev \
+    # Additional dependencies
     libvulkan1 \
     && rm -rf /var/lib/apt/lists/*
 
