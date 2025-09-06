@@ -112,8 +112,7 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright CLI globally - dependencies will be installed at runtime
-RUN npm install -g playwright@1.55.0
+# Playwright CLI will be installed after Node.js installation
 
 # Install kubectl (latest stable) - AMD64 only
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
@@ -155,6 +154,9 @@ RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key a
 
 # Install additional development tools
 RUN npm install -g yarn typescript ts-node @types/node
+
+# Install Playwright CLI globally - dependencies will be installed at runtime
+RUN npm install -g playwright@1.55.0
 
 # Fix Python externally-managed environment issue (Ubuntu 24.04 PEP 668)
 RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
