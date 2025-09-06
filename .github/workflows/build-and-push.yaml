@@ -62,3 +62,4 @@ jobs:
         cache-to: type=gha,mode=max
         
     - name: Generate image digest
+      run: echo "Image pushed with tags: ${{ steps.meta.outputs.tags }}"
