@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "llmdev.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+  {{- if .Values.tailscale.enabled }}
+  annotations:
+    tailscale.com/expose: "true"
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.ssh.port }}
+      targetPort: ssh
+      protocol: TCP
+      name: ssh
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.ssh.nodePort }}
+      nodePort: {{ .Values.service.ssh.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "llmdev.selectorLabels" . | nindent 4 }}

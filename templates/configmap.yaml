@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "llmdev.fullname" . }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+data:
+  sshd_config: |
+    Port 22
+    Protocol 2
+    HostKey /etc/ssh/ssh_host_rsa_key
+    HostKey /etc/ssh/ssh_host_ecdsa_key
+    HostKey /etc/ssh/ssh_host_ed25519_key
+    PermitRootLogin {{ .Values.ssh.permitRootLogin }}
+    PasswordAuthentication {{ .Values.ssh.passwordAuthentication }}
+    PubkeyAuthentication yes
+    AuthorizedKeysFile /config/.ssh/authorized_keys
+    UseDNS no
+    X11Forwarding yes
+    PrintMotd no
+    AcceptEnv LANG LC_* PATH
+    Subsystem sftp /usr/lib/openssh/sftp-server
+  
+  10-setup-dev-environment: |
+    #!/usr/bin/with-contenv bash
+    echo "🚀 Setting up development environment..."
+    chown -R abc:abc /config/
+    mkdir -p /config/.npm-global
+    if [ ! -f /config/.npm-global/.initialized ]; then
+      su abc -c "npm config set prefix /config/.npm-global"
+      touch /config/.npm-global/.initialized
+    fi
+    
+    echo "🔧 Exporting environment variables for SSH sessions..."
+    printenv | grep -E "_API_KEY|_TOKEN|GHCR_TOKEN|GH_TOKEN|GITHUB_ACCESS_TOKEN" > /tmp/container-env-raw
+    
+    {
+      echo "export GEMINI_API_KEY=\"$GEMINI_API_KEY\""
+      echo "export GITHUB_TOKEN=\"$GITHUB_TOKEN\""
+      echo "export GHCR_TOKEN=\"$GHCR_TOKEN\""
+      echo "export GH_TOKEN=\"$GITHUB_TOKEN\""
+      echo "export GITHUB_ACCESS_TOKEN=\"$GITHUB_TOKEN\""
+      echo "export XAI_API_KEY=\"$XAI_API_KEY\""
+      echo "export GROK_API_KEY=\"$GROK_API_KEY\""
+      echo "export OPENAI_API_KEY=\"$OPENAI_API_KEY\""
+      echo "export OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\""
+      
+      echo "export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\""
+
+      echo "export PERPLEXITY_API_KEY=\"$PERPLEXITY_API_KEY\""
+      echo "export PATH=\"/config/.npm-global/bin:$PATH\""
+    } > /tmp/container-env
+    chmod 644 /tmp/container-env
+    
+    echo 'export PATH="/config/.npm-global/bin:$PATH"' > /etc/profile.d/npm-path.sh
+    echo 'if [ -f /tmp/container-env ]; then source /tmp/container-env; fi' >> /etc/profile.d/npm-path.sh
+    chmod 644 /etc/profile.d/npm-path.sh
+    
+    if [ ! -f /config/.bashrc ]; then
+        {
+          echo 'export PATH="/config/.npm-global/bin:$PATH"'
+          echo 'export HOME="/config"'
+          echo 'if [ -f /etc/profile.d/npm-path.sh ]; then'
+          echo '    source /etc/profile.d/npm-path.sh'
+          echo 'fi'
+          echo 'if [ -d "/appdata" ] && ([ "$PWD" = "$HOME" ] || [ "$PWD" = "/config" ]); then'
+          echo '    cd /appdata'
+          echo '    echo "📁 Starting in projects directory: /appdata"'
+          echo 'fi'
+        } > /config/.bashrc
+        chown abc:abc /config/.bashrc
+    elif ! grep -q "npm-path.sh" /config/.bashrc; then
+        echo 'if [ -f /etc/profile.d/npm-path.sh ]; then source /etc/profile.d/npm-path.sh; fi' >> /config/.bashrc
+    fi
+    
+    # Ensure /appdata directory change is in .bashrc for existing installations
+    if [ -f /config/.bashrc ] && ! grep -q "cd /appdata" /config/.bashrc; then
+        echo 'if [ -d "/appdata" ] && ([ "$PWD" = "$HOME" ] || [ "$PWD" = "/config" ]); then' >> /config/.bashrc
+        echo '    cd /appdata' >> /config/.bashrc
+        echo '    echo "📁 Starting in projects directory: /appdata"' >> /config/.bashrc
+        echo 'fi' >> /config/.bashrc
+    fi
+    
+    echo "✅ Development environment ready!"

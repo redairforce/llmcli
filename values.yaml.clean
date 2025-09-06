@@ -1,0 +1,195 @@
+# Clean values.yaml for GitHub - NO HARDCODED SECRETS
+# This file is safe to commit to public repositories
+
+# === BASIC CONFIGURATION ===
+namespace: "ai"
+
+# Image configuration (updated by CI/CD)
+image:
+  repository: "ghcr.io/redairforce/llmcli"
+  pullPolicy: Always
+  tag: "latest"
+  pullSecrets:
+    - name: ghcr-secret
+
+# === USER CONFIGURATION ===
+user:
+  username: "abc"
+  uid: 1000
+  gid: 1000
+  # NOTE: Set password via deployment-specific values override
+  # password: "OVERRIDE_IN_DEPLOYMENT"
+
+# === SSH CONFIGURATION ===
+ssh:
+  permitRootLogin: "no"
+  passwordAuthentication: "no"
+  # NOTE: SSH public key is automatically injected from secrets (ssh-public-key)
+  # Additional SSH keys can be added here for multiple access methods
+  authorizedKeys: []
+    # - "ssh-ed25519 AAAAC3... user@domain.com"
+
+# === GIT CONFIGURATION ===
+git:
+  # NOTE: Set via deployment-specific values override
+  userName: ""
+  userEmail: ""
+
+# === SERVICE CONFIGURATION ===
+service:
+  type: ClusterIP
+  ssh:
+    port: 22
+    nodePort: null
+
+# === STORAGE CONFIGURATION ===
+storage:
+  home:
+    size: "20Gi"
+    storageClass: "longhorn-nvme"
+  appdata:
+    enabled: true
+    existingClaim: "appdata-pvc"
+    mountPath: "/appdata"
+
+# === RESOURCE LIMITS ===
+resources:
+  main:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# === SECURITY CONFIGURATION ===
+rbac:
+  create: false
+
+serviceAccount:
+  create: false
+  name: "kubectl-mcp-service-account"
+
+# === SECRET REFERENCES ===
+secretReferences:
+  devApiKeys: "dev-api-keys"
+
+# === LOGGING ===
+logging:
+  level: "INFO"
+
+# === MCP SERVER CONFIGURATION ===
+mcpServers:
+  playwrightMcp:
+    enabled: true
+    package: "@executeautomation/playwright-mcp-server"
+    version: "latest"
+    browser: "chrome"
+    headless: true
+    forceUpdate: false
+  
+  wikiJsMcp:
+    enabled: true
+    package: "@redairforce/wikijs-mcp"
+    version: "latest"
+    forceUpdate: false
+  
+  perplexityMcp:
+    enabled: true
+    package: "server-perplexity-ask"
+    version: "latest"
+    forceUpdate: false
+  
+  desktopCommander:
+    enabled: true
+    package: "@wonderwhy-er/desktop-commander"
+    version: "latest"
+    forceUpdate: false
+  
+  kubernetesMcp:
+    enabled: true
+    package: "mcp-server-kubernetes"
+    version: "latest"
+    forceUpdate: false
+  
+  repomixMcp:
+    enabled: true
+    package: "repomix"
+    version: "latest"
+    forceUpdate: false
+  
+  context7Mcp:
+    enabled: true
+    package: "@upstash/context7-mcp"
+    version: "latest"
+    forceUpdate: false
+  
+  postgresMcp:
+    enabled: true
+    package: "postgres-mcp"
+    version: "latest"
+    forceUpdate: false
+    accessMode: "unrestricted"
+  
+  gitMcp:
+    enabled: true
+    repository: "https://github.com/idosal/git-mcp.git"
+    version: "latest"
+    transport: "sse"
+    port: 5173
+
+# === DEVELOPMENT TOOLS ===
+devTools:
+  languages:
+    python: true
+    nodejs: true
+    golang: true
+    rust: false
+    java: false
+
+# === CLI TOOLS ===
+claudeCli:
+  version: "1.0.107"
+  forceUpdate: false
+
+playwright:
+  version: "1.55.0"
+  forceUpdate: false
+
+googleGenAi:
+  package: "@google/genai"
+  version: "1.17.0"
+  forceUpdate: false
+
+veleroCli:
+  version: "1.16.2"
+  checksum: "40a13f9a2e787eb7b1e7a5c8db9662226f1c3462e5c9f97d362d9e408d8d7a31"
+  forceUpdate: false
+
+minioCli:
+  version: "RELEASE.2025-07-21T05-28-08Z"
+  checksum: "ea4a453be116071ab1ccbd24eb8755bf0579649f41a7b94ab9e68571bb9f4a1e"
+  forceUpdate: false
+
+# === PLACEMENT ===
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# === SECURITY CONTEXT ===
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# === NETWORKING ===
+tailscale:
+  enabled: true
+
+# === ADDITIONAL CONFIGURATION ===
+env: []
+extraVolumeMounts: []
+extraVolumes: []
+command: []
+args: []

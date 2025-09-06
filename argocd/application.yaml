@@ -1,0 +1,69 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llmcli
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: llmcli
+    app.kubernetes.io/part-of: ai-platform
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/redairforce/llmcli.git  # UPDATE THIS
+    targetRevision: HEAD
+    path: .
+    helm:
+      valueFiles:
+        - values.yaml.secure
+      parameters:
+        # Override image tag to use specific version (updated by CI/CD)
+        - name: image.tag
+          value: "latest"
+        # Override user configuration (deployment-specific)
+        - name: user.password
+          value: "OVERRIDE_IN_DEPLOYMENT"
+        - name: git.userName
+          value: "OVERRIDE_IN_DEPLOYMENT" 
+        - name: git.userEmail
+          value: "OVERRIDE_IN_DEPLOYMENT"
+        # Override storage classes for your cluster
+        - name: storage.home.storageClass
+          value: "longhorn-nvme"  # UPDATE FOR YOUR CLUSTER
+        - name: storage.appdata.existingClaim
+          value: "appdata-pvc"    # UPDATE FOR YOUR CLUSTER
+        # Override service account for your cluster
+        - name: serviceAccount.name
+          value: "kubectl-mcp-service-account"  # UPDATE FOR YOUR CLUSTER
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false  # Namespace should already exist
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+  
+  # Notification annotations
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: "ai-deployments"

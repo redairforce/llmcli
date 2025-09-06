@@ -1,0 +1,171 @@
+{{- if .Values.rbac.create }}
+---
+# Service Account for Kubernetes MCP Server
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "llmdev.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+automountServiceAccountToken: true
+
+---
+# Enhanced Cluster Role for comprehensive Kubernetes management including MCP server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "llmdev.fullname" . }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+rules:
+# Core resource management
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "pods/exec", "pods/portforward", "pods/attach"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["services", "endpoints", "configmaps", "secrets", "persistentvolumes", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["nodes", "namespaces", "events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+# Apps and deployments
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "scale"]
+- apiGroups: ["apps"]
+  resources: ["deployments/scale", "deployments/status", "replicasets/scale", "statefulsets/scale"]
+  verbs: ["get", "update", "patch"]
+
+# Batch jobs
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Networking
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["extensions"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Storage
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses", "volumeattachments"]
+  verbs: ["get", "list", "watch"]
+
+# RBAC resources (limited to viewing)
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+  verbs: ["get", "list", "watch"]
+
+# Metrics and monitoring
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+# Helm and ArgoCD resources
+- apiGroups: ["argoproj.io"]
+  resources: ["applications", "appprojects", "applicationsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["argoproj.io"]
+  resources: ["applications/sync", "applications/action", "applications/finalizers"]
+  verbs: ["create", "update", "patch"]
+
+# Custom Resource Definitions
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch"]
+
+# Longhorn storage management
+- apiGroups: ["longhorn.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+
+# Tailscale operator
+- apiGroups: ["tailscale.com"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Multus CNI
+- apiGroups: ["k8s.cni.cncf.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+
+# KubeVirt resources
+- apiGroups: ["kubevirt.io"]
+  resources: ["virtualmachines", "virtualmachineinstances"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["subresources.kubevirt.io"]
+  resources: ["virtualmachineinstances/console", "virtualmachineinstances/vnc", "virtualmachineinstances/ssh", "virtualmachines/start", "virtualmachines/stop", "virtualmachines/restart"]
+  verbs: ["get", "list", "update"]
+
+# Policy resources
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets", "podsecuritypolicies"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Autoscaling
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Discovery
+- apiGroups: ["discovery.k8s.io"]
+  resources: ["endpointslices"]
+  verbs: ["get", "list", "watch"]
+
+# Linkerd-specific resources
+- apiGroups: ["linkerd.io"]
+  resources: ["serviceprofiles"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["policy.linkerd.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+# Cluster Role Binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "llmdev.fullname" . }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "llmdev.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "llmdev.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+
+---
+# Additional RoleBinding for enhanced permissions in namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "llmdev.fullname" . }}-admin
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: ServiceAccount
+  name: {{ include "llmdev.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+{{- end }}

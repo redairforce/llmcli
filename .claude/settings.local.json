@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get pods:*)",
+      "Bash(helm list:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl top:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(ssh:*)",
+      "Bash(kubectl patch:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(kubectl logs:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:pabloromeo.github.io)",
+      "Bash(mkdir:*)",
+      "mcp__zen__analyze",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(python3:*)",
+      "mcp__zen__thinkdeep",
+      "Bash(helm template:*)",
+      "Bash(helm package:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(kubectl exec:*)",
+      "Bash(./velero restore get)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "perplexity-ask",
+    "wikijs",
+    "playwright-mcp-server",
+    "zen-mcp-server",
+    "mcp-server-kubernetes",
+    "repomix",
+    "desktop-commander"
+  ]
+}

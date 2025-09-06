@@ -1,0 +1,142 @@
+#!/usr/bin/with-contenv bash
+
+echo "🔧 Setting up MCP servers"
+
+# Ensure npm global directory exists and is configured for abc user
+mkdir -p /config/.npm-global /config/.npm
+chown -R abc:abc /config/.npm-global /config/.npm
+s6-setuidgid abc npm config set prefix '/config/.npm-global'
+s6-setuidgid abc npm config set cache '/config/.npm'
+
+# Set MCP environment variables globally
+s6-setenv NPM_CONFIG_PREFIX "/config/.npm-global"
+s6-setenv PATH "/config/.npm-global/bin:$PATH"
+
+# Function to install NPM-based MCP servers
+install_npm_mcp() {
+    local package="$1"
+    local version="${2:-latest}"
+    echo "📦 Installing NPM MCP: $package@$version"
+    
+    s6-setuidgid abc bash -c "
+        export HOME=/config
+        export npm_config_cache=/config/.npm
+        export npm_config_prefix=/config/.npm-global
+        cd /config
+        npm install -g '$package@$version'
+    "
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Successfully installed $package"
+    else
+        echo "⚠️ Failed to install $package"
+    fi
+}
+
+# Function to install Python-based MCP servers  
+install_python_mcp() {
+    local package="$1"
+    echo "🐍 Installing Python MCP: $package"
+    
+    # Use system pip3 with user install to avoid permission issues
+    s6-setuidgid abc pip3 install --user "$package"
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Successfully installed $package"
+    else
+        echo "⚠️ Failed to install $package"
+    fi
+}
+
+# Core MCP Servers Installation
+echo "📦 Installing core MCP servers..."
+
+# NPM-based servers
+install_npm_mcp "mcp-server-perplexity-ask" "0.1.3"
+install_npm_mcp "mcp-server-kubernetes" "2.9.0" 
+install_npm_mcp "@executeautomation/playwright-mcp-server" "latest"
+install_npm_mcp "repomix" "latest"
+install_npm_mcp "@wonderwhy-er/desktop-commander" "latest"
+install_npm_mcp "@upstash/context7-mcp" "latest"
+
+# WikiJS MCP (if configured)
+if [ -n "$WIKIJS_API_URL" ] && [ -n "$WIKIJS_TOKEN" ]; then
+    install_npm_mcp "@redairforce/wikijs-mcp" "latest"
+fi
+
+# Python-based servers
+echo "🐍 Installing Python MCP servers..."
+
+# Install postgres-mcp for PostgreSQL database management
+install_python_mcp "postgres-mcp"
+
+# Install zen-mcp-server (already done in Dockerfile, but ensure it's up to date)
+if [ -d /opt/zen-mcp-server ]; then
+    echo "🔄 Updating zen-mcp-server..."
+    cd /opt/zen-mcp-server
+    git pull origin main
+    pip3 install -r requirements.txt
+    chmod +x run-server.sh
+fi
+
+# Handle GitHub MCP server (Go binary, already built in Dockerfile)
+if [ -f /usr/local/bin/github-mcp-server ]; then
+    echo "✅ GitHub MCP server binary available"
+    # Create convenience symlink in /config for user access
+    mkdir -p /config/bin
+    ln -sf /usr/local/bin/github-mcp-server /config/bin/github-mcp-server
+    chown -h abc:abc /config/bin/github-mcp-server
+fi
+
+# Install git-mcp (Node.js project for Git repository documentation)
+echo "📁 Setting up git-mcp server..."
+GIT_MCP_DIR="/opt/git-mcp"
+
+if [ ! -d "$GIT_MCP_DIR" ]; then
+    echo "📦 Cloning git-mcp repository..."
+    git clone https://github.com/idosal/git-mcp.git "$GIT_MCP_DIR"
+    cd "$GIT_MCP_DIR"
+    
+    # Install dependencies as abc user
+    echo "📦 Installing git-mcp dependencies..."
+    s6-setuidgid abc bash -c "
+        export HOME=/config
+        export npm_config_cache=/config/.npm
+        cd $GIT_MCP_DIR
+        npm install
+    "
+    
+    # Create run script
+    cat > "$GIT_MCP_DIR/run-git-mcp.sh" << 'EOF'
+#!/bin/bash
+cd /opt/git-mcp
+export NODE_ENV=production
+exec npm run dev
+EOF
+    chmod +x "$GIT_MCP_DIR/run-git-mcp.sh"
+    
+    echo "✅ git-mcp installed successfully"
+else
+    echo "✅ git-mcp already available"
+fi
+
+# Update PATH for all installed MCP tools
+echo "🔧 Updating PATH for MCP tools..."
+echo 'export PATH="/config/.npm-global/bin:/config/.local/bin:/config/bin:$PATH"' >> /tmp/mcp-env
+
+# Verify installations
+echo "🔍 Verifying MCP server installations..."
+
+# Check npm global packages
+if s6-setuidgid abc npm list -g --depth=0 2>/dev/null | grep -q "mcp-server"; then
+    echo "✅ NPM MCP servers installed"
+else
+    echo "⚠️ Some NPM MCP servers may not be installed correctly"
+fi
+
+# Check Python packages
+if s6-setuidgid abc pip3 list --user 2>/dev/null | grep -q "mcp\|zen"; then
+    echo "✅ Python MCP components available"
+fi
+
+echo "✅ MCP server setup completed"

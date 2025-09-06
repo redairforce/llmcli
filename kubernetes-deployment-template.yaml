@@ -1,0 +1,225 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmcli
+  namespace: ai
+  labels:
+    app: llmcli
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llmcli
+  template:
+    metadata:
+      labels:
+        app: llmcli
+        version: v2
+    spec:
+      containers:
+      - name: llmcli
+        image: your-registry/llmcli:latest
+        ports:
+        - containerPort: 22
+          name: ssh
+          protocol: TCP
+        env:
+        # === AI API Keys from dev-api-keys secret ===
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: anthropic-api-key
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: gemini-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: github-token
+        - name: GROK_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: grok_api_key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: openai-api-key
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: openrouter-api-key
+        - name: PERPLEXITY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: Perplexity-api-key
+        - name: XAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: xai-api-key
+        # === WikiJS MCP Configuration ===
+        - name: WIKIJS_API_URL
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: wikijs-api-url
+        - name: WIKIJS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: wikijs-token
+        # === Derived GitHub Token Variables ===
+        - name: GH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: github-token
+        - name: GITHUB_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: github-token
+        - name: GHCR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dev-api-keys
+              key: github-token
+        # === LinuxServer.io Standard Variables ===
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000" 
+        - name: TZ
+          value: "UTC"
+        # === MCP Configuration ===
+        - name: PLAYWRIGHT_MCP_ENABLED
+          value: "true"
+        - name: LOG_LEVEL
+          value: "INFO"
+        # === Optional User Configuration (can be moved to separate secret) ===
+        - name: USER_PASSWORD
+          value: "simple123"  # TODO: Move to secret
+        # - name: SSH_AUTHORIZED_KEYS
+        #   value: "ssh-rsa AAAA..."  # TODO: Add if needed
+        # - name: GIT_USER_EMAIL
+        #   value: "user@example.com"  # TODO: Add if needed
+        # - name: GIT_USER_NAME  
+        #   value: "User Name"  # TODO: Add if needed
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+        - name: appdata-volume
+          mountPath: /appdata
+        # Optional: Mount additional volumes as needed
+        # - name: projects-volume
+        #   mountPath: /config/projects
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        # Health checks
+        livenessProbe:
+          tcpSocket:
+            port: 22
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 22
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      volumes:
+      - name: config-volume
+        persistentVolumeClaim:
+          claimName: llmcli-config-pvc
+      - name: appdata-volume
+        persistentVolumeClaim:
+          claimName: llmcli-appdata-pvc
+      # Optional: Additional volumes
+      # - name: projects-volume
+      #   persistentVolumeClaim:
+      #     claimName: llmcli-projects-pvc
+      # Security context
+      securityContext:
+        fsGroup: 1000
+      # Optional: Node selector, affinity, tolerations
+      # nodeSelector:
+      #   kubernetes.io/arch: amd64
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llmcli-service
+  namespace: ai
+  labels:
+    app: llmcli
+spec:
+  selector:
+    app: llmcli
+  ports:
+  - name: ssh
+    port: 22
+    targetPort: 22
+    protocol: TCP
+  type: ClusterIP
+---
+# Optional: Ingress for external SSH access
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: llmcli-ingress
+#   namespace: ai
+#   annotations:
+#     kubernetes.io/ingress.class: "nginx"
+#     nginx.ingress.kubernetes.io/tcp-services-configmap: "ai/llmcli-tcp-services"
+# spec:
+#   rules:
+#   - host: llmcli.your-domain.com
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: llmcli-service
+#             port:
+#               number: 22
+---
+# PersistentVolumeClaim templates (customize as needed)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llmcli-config-pvc
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: your-storage-class  # Update with your storage class
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llmcli-appdata-pvc
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: your-storage-class  # Update with your storage class

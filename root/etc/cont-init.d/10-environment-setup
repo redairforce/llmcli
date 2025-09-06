@@ -1,0 +1,121 @@
+#!/usr/bin/with-contenv bash
+
+echo "🌍 Setting up environment variables and user configuration"
+
+# Set standard environment variables for all services
+s6-setenv HOME "/config"
+s6-setenv USER "abc"
+s6-setenv SHELL "/bin/bash"
+
+# Set up MCP and development tool paths
+s6-setenv NPM_CONFIG_PREFIX "/config/.npm-global"
+s6-setenv GOPATH "/config/go"
+s6-setenv PYTHONPATH "/config/.local/lib/python3.12/site-packages:/opt/zen-mcp-server"
+
+# Create comprehensive PATH
+NEW_PATH="/config/.npm-global/bin:/config/.local/bin:/config/bin:/config/go/bin:/usr/local/bin:/usr/bin:/bin"
+s6-setenv PATH "$NEW_PATH"
+
+# Create environment file for SSH sessions and interactive shells
+cat > /tmp/container-env << 'EOF'
+# AI API Keys
+export GEMINI_API_KEY="${GEMINI_API_KEY}"
+export GITHUB_TOKEN="${GITHUB_TOKEN}"
+export GHCR_TOKEN="${GHCR_TOKEN}"
+export GH_TOKEN="${GITHUB_TOKEN}"
+export GITHUB_ACCESS_TOKEN="${GITHUB_TOKEN}"
+export XAI_API_KEY="${XAI_API_KEY}"
+export GROK_API_KEY="${GROK_API_KEY}"
+export OPENAI_API_KEY="${OPENAI_API_KEY}"
+export OPENROUTER_API_KEY="${OPENROUTER_API_KEY}"
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
+export PERPLEXITY_API_KEY="${PERPLEXITY_API_KEY}"
+export CONTEXT7_API_KEY="${CONTEXT7_API_KEY}"
+
+# PostgreSQL MCP Configuration
+export DATABASE_URI="${DATABASE_URI}"
+export POSTGRES_USERNAME="${POSTGRES_USERNAME}"
+export POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+
+# MCP and development environment
+export HOME="/config"
+export USER="abc"
+export SHELL="/bin/bash"
+export NPM_CONFIG_PREFIX="/config/.npm-global"
+export GOPATH="/config/go"
+export PYTHONPATH="/config/.local/lib/python3.12/site-packages:/opt/zen-mcp-server"
+export PATH="/config/.npm-global/bin:/config/.local/bin:/config/bin:/config/go/bin:/usr/local/bin:/usr/bin:/bin"
+
+# Playwright configuration
+export PLAYWRIGHT_BROWSERS_PATH="/config/.cache/ms-playwright"
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD="false"
+
+# Node.js configuration
+export NODE_PATH="/config/.npm-global/lib/node_modules"
+export npm_config_cache="/config/.npm"
+export npm_config_prefix="/config/.npm-global"
+EOF
+
+chmod 644 /tmp/container-env
+
+# Create system-wide profile script
+cat > /etc/profile.d/container-env.sh << 'EOF'
+# Source container environment for all interactive sessions
+if [ -f /tmp/container-env ]; then
+    source /tmp/container-env
+fi
+
+# Change to /appdata if in home directory (convenience)
+if [ -d "/appdata" ] && [ "$PWD" = "$HOME" ]; then
+    cd /appdata
+fi
+EOF
+
+chmod 644 /etc/profile.d/container-env.sh
+
+# Set up abc user directories
+mkdir -p /config/{.npm-global,.npm,.local/bin,.cache/ms-playwright,.ssh,.kube,bin,projects,go/bin}
+
+# Create or update .bashrc for abc user
+cat > /config/.bashrc << 'EOF'
+# Source container environment
+if [ -f /tmp/container-env ]; then
+    source /tmp/container-env
+fi
+
+# Interactive shell configuration
+if [ -t 0 ]; then
+    # Colored prompt
+    export PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    
+    # Common aliases
+    alias ll='ls -alF'
+    alias la='ls -A'
+    alias l='ls -CF'
+    alias ..='cd ..'
+    alias ...='cd ../..'
+    
+    # Change to /appdata if starting in home
+    if [ "$PWD" = "$HOME" ] && [ -d "/appdata" ]; then
+        cd /appdata
+    fi
+fi
+
+# Enable bash completion
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    source /etc/bash_completion
+fi
+EOF
+
+# Set proper ownership
+chown -R abc:abc /config
+chmod 644 /config/.bashrc
+
+# Fix abc user shell for SSH access  
+usermod -s /bin/bash abc
+
+# Set password for abc user (from env var or default)
+PASSWORD=${USER_PASSWORD:-simple123}
+echo "abc:$PASSWORD" | chpasswd
+
+echo "✅ Environment setup completed"

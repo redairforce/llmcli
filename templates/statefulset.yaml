@@ -1,0 +1,271 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "llmdev.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+    npm-updater: enabled
+    npm-system: llmdev
+spec:
+  serviceName: {{ include "llmdev.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "llmdev.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "llmdev.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Force pod restart when config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "llmdev.serviceAccountName" . }}
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+        fsGroup: {{ .Values.user.gid }}
+      initContainers:
+        # Initialize home directory with proper permissions
+        - name: init-home
+          image: busybox:1.35
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /config/.ssh /config/.config
+              # Fix ownership of entire config directory including existing files
+              chown -R {{ .Values.user.uid }}:{{ .Values.user.gid }} /config
+              chmod 700 /config/.ssh
+              # Ensure SSH authorized_keys has correct permissions if it exists
+              if [ -f /config/.ssh/authorized_keys ]; then
+                chmod 600 /config/.ssh/authorized_keys
+                chown {{ .Values.user.uid }}:{{ .Values.user.gid }} /config/.ssh/authorized_keys
+              fi
+          volumeMounts:
+            - name: home-storage
+              mountPath: /config
+          securityContext:
+            runAsUser: 0
+      containers:
+        # Main Claude Code development container
+        - name: llmdev
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          env:
+            - name: USER
+              value: "{{ .Values.user.username }}"
+            - name: HOME
+              value: "/config"
+            - name: SHELL
+              value: "/bin/bash"
+            - name: PUID
+              value: "{{ .Values.user.uid }}"
+            - name: PGID
+              value: "{{ .Values.user.gid }}"
+            - name: PATH
+              value: "/config/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+
+            # The following environment variables are intentionally duplicated due to package requirements
+            # === AI API Keys from external secret ===
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: anthropic-api-key
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: github-token
+            - name: GHCR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: github-token
+            - name: XAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: xai-api-key
+            - name: GROK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: grok_api_key
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: gemini-api-key
+            - name: PERPLEXITY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: Perplexity-api-key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: openai-api-key
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: openrouter-api-key
+            # WikiJS MCP Configuration
+            - name: WIKIJS_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: wikijs-api-url
+            - name: WIKIJS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: wikijs-token
+            # Additional GitHub Token References (for compatibility)
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: github-token
+            - name: GITHUB_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: github-token
+            # Context7 MCP Configuration
+            - name: CONTEXT7_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: context7-api-key
+            # PostgreSQL MCP Configuration
+            - name: DATABASE_URI
+              value: "postgresql://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@postgresql.arr.svc.cluster.local:5432/postgres"
+            - name: POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: postgres-username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: postgres-password
+            # SSH Configuration
+            - name: SSH_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretReferences.devApiKeys }}
+                  key: ssh-public-key
+            # MCP Configuration
+            - name: PLAYWRIGHT_MCP_ENABLED
+              value: "{{ .Values.mcpServers.playwrightMcp.enabled | default true }}"
+            - name: LOG_LEVEL
+              value: {{ .Values.logging.level | default "INFO" | quote }}
+
+            {{- if .Values.ssh.authorizedKeys }}
+            - name: SSH_AUTHORIZED_KEYS
+              value: |
+                {{- range .Values.ssh.authorizedKeys }}
+                {{ . }}
+                {{- end }}
+            {{- end }}
+            {{- if .Values.git.userEmail }}
+            - name: GIT_USER_EMAIL
+              value: "{{ .Values.git.userEmail }}"
+            {{- end }}
+            {{- if .Values.git.userName }}
+            - name: GIT_USER_NAME
+              value: "{{ .Values.git.userName }}"
+            {{- end }}
+            {{- if .Values.user.password }}
+            - name: USER_PASSWORD
+              value: "{{ .Values.user.password }}"
+            {{- end }}
+          volumeMounts:
+            - name: home-storage
+              mountPath: /config
+            - name: appdata
+              mountPath: /appdata
+            - name: ssh-config
+              mountPath: /etc/ssh/sshd_config
+              subPath: sshd_config
+            - name: dev-init-scripts
+              mountPath: /etc/cont-init.d/20-setup-dev-environment
+              subPath: 10-setup-dev-environment
+            - name: ssh-setup-scripts
+              mountPath: /etc/cont-init.d/15-setup-ssh
+              subPath: setup-ssh.sh
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    sleep 5  # Wait for s6-overlay initialization
+                    chown -R {{ .Values.user.uid }}:{{ .Values.user.gid }} /config
+          resources:
+            {{- toYaml .Values.resources.main | nindent 12 }}
+          securityContext:
+            runAsUser: 0  # Need root for SSH daemon
+            capabilities:
+              add:
+                - SYS_ADMIN  # Required for some development tools
+      volumes:
+        # Mount existing appdata PVC
+        - name: appdata
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.appdata.existingClaim }}
+        # SSH configuration
+        - name: ssh-config
+          configMap:
+            name: {{ include "llmdev.fullname" . }}-config
+            defaultMode: 0644
+        # Development initialization scripts
+        - name: dev-init-scripts
+          configMap:
+            name: {{ include "llmdev.fullname" . }}-config
+            defaultMode: 0755
+        # SSH setup scripts
+        - name: ssh-setup-scripts
+          configMap:
+            name: {{ include "llmdev.fullname" . }}-ssh-setup
+            defaultMode: 0755
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    # Persistent storage for user home directory
+    - metadata:
+        name: home-storage
+        labels:
+          {{- include "llmdev.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storage.home.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.home.size }}

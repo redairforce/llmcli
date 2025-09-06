@@ -1,0 +1,16 @@
+apiVersion: v2
+name: llmcli
+description: A Helm chart for Claude Code LLM development environment - Ubuntu 24.04 with standardized MCP server support, s6-overlay service management, and comprehensive AI toolchain
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords:
+  - development
+  - llm
+  - ai
+  - ssh
+  - git
+  - kubectl
+home: https://claude.ai/code
+maintainers:
+  - name: redairforce

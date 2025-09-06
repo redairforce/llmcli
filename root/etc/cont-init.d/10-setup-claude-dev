@@ -1,0 +1,41 @@
+#!/usr/bin/with-contenv bash
+
+echo "🚀 Setting up Claude Code Development Environment"
+
+# Claude CLI installation handled by ConfigMap script (10-setup-dev-environment)
+
+# Set up SSH authorized keys if provided
+if [ -n "$SSH_AUTHORIZED_KEYS" ]; then
+    echo "🔑 Setting up SSH authorized keys"
+    mkdir -p /config/.ssh
+    echo "$SSH_AUTHORIZED_KEYS" > /config/.ssh/authorized_keys
+    chmod 600 /config/.ssh/authorized_keys
+    chown abc:abc /config/.ssh/authorized_keys
+fi
+
+# Set up Git configuration if provided
+if [ -n "$GIT_USER_EMAIL" ]; then
+    s6-setuidgid abc git config --global user.email "$GIT_USER_EMAIL"
+fi
+
+if [ -n "$GIT_USER_NAME" ]; then
+    s6-setuidgid abc git config --global user.name "$GIT_USER_NAME"
+fi
+
+# Set up kubectl config
+mkdir -p /config/.kube
+chown abc:abc /config/.kube
+
+# Set up proper permissions
+chown -R abc:abc /config
+
+# Fix abc user shell for SSH access
+usermod -s /bin/bash abc
+
+# Set password for abc user (from USER_PASSWORD env var or default)
+PASSWORD=${USER_PASSWORD:-simple123}
+echo "abc:$PASSWORD" | chpasswd
+
+# Skip .bashrc creation - let ConfigMap script handle it with correct PATH
+
+echo "✅ Claude Code Development Environment Ready!"

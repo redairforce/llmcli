@@ -1,0 +1,15 @@
+#!/usr/bin/with-contenv bash
+
+echo "🚀 Starting git-mcp server..."
+
+# Wait for git-mcp to be installed
+while [ ! -d "/opt/git-mcp" ]; do
+    echo "⏳ Waiting for git-mcp installation..."
+    sleep 2
+done
+
+# Change to git-mcp directory and start the server
+cd /opt/git-mcp
+
+# Start git-mcp as abc user
+exec s6-setuidgid abc npm run dev

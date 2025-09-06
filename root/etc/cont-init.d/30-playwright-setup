@@ -1,0 +1,53 @@
+#!/usr/bin/with-contenv bash
+
+echo "🎭 Setting up Playwright MCP requirements"
+
+# Check if playwright-mcp-server is requested/installed
+PLAYWRIGHT_ENABLED=${PLAYWRIGHT_MCP_ENABLED:-true}
+
+if [ "$PLAYWRIGHT_ENABLED" = "true" ]; then
+    echo "🎭 Playwright MCP enabled, installing browsers and dependencies"
+    
+    # Install Playwright browsers for abc user
+    if command -v npx >/dev/null 2>&1; then
+        echo "📦 Installing Playwright browsers..."
+        
+        # Install browsers as abc user to avoid permission issues
+        s6-setuidgid abc bash -c "
+            export HOME=/config
+            export npm_config_cache=/config/.npm
+            cd /config
+            npx playwright install
+        "
+        
+        if [ $? -eq 0 ]; then
+            echo "✅ Playwright browsers installed successfully"
+        else
+            echo "⚠️ Playwright browser installation failed, but continuing..."
+        fi
+    else
+        echo "⚠️ npx not found, skipping Playwright browser installation"
+    fi
+    
+    # Verify Chrome installation (fallback to system Chrome if Playwright install failed)
+    if ! s6-setuidgid abc bash -c "npx playwright --version" >/dev/null 2>&1; then
+        echo "🔧 Playwright CLI not working, checking system Chrome..."
+        if command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "✅ System Chrome available as fallback"
+        else
+            echo "⚠️ No Chrome browser available - Playwright MCP may not function properly"
+        fi
+    fi
+    
+    # Set Playwright-specific environment variables
+    s6-setenv PLAYWRIGHT_BROWSERS_PATH "/config/.cache/ms-playwright"
+    s6-setenv PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD "false"
+    
+    # Create browsers directory with proper permissions
+    mkdir -p /config/.cache/ms-playwright
+    chown -R abc:abc /config/.cache/ms-playwright
+    
+    echo "🎭 Playwright setup completed"
+else
+    echo "🎭 Playwright MCP disabled, skipping browser installation"
+fi

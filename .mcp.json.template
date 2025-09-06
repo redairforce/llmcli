@@ -1,0 +1,67 @@
+{
+  "mcpServers": {
+    "perplexity-ask": {
+      "command": "/config/.npm-global/bin/mcp-server-perplexity-ask",
+      "args": []
+    },
+    "github": {
+      "command": "/usr/local/bin/github-mcp-server",
+      "args": ["stdio"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "wikijs": {
+      "command": "/config/.npm-global/bin/wikijs-mcp",
+      "args": ["server"],
+      "env": {
+        "WIKIJS_API_URL": "${WIKIJS_API_URL}",
+        "WIKIJS_TOKEN": "${WIKIJS_TOKEN}",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "playwright-mcp-server": {
+      "command": "/config/.npm-global/bin/mcp-server-playwright",
+      "args": []
+    },
+    "zen-mcp-server": {
+      "command": "python3",
+      "args": ["/opt/zen-mcp-server/server.py"],
+      "env": {
+        "PYTHONPATH": "/opt/zen-mcp-server"
+      }
+    },
+    "mcp-server-kubernetes": {
+      "command": "/config/.npm-global/bin/mcp-server-kubernetes",
+      "args": []
+    },
+    "repomix": {
+      "command": "/config/.npm-global/bin/repomix",
+      "args": ["--mcp"]
+    },
+    "desktop-commander": {
+      "command": "/config/.npm-global/bin/desktop-commander",
+      "args": []
+    },
+    "context7": {
+      "command": "/config/.npm-global/bin/context7-mcp",
+      "args": [],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "postgres": {
+      "command": "/config/.local/bin/postgres-mcp",
+      "args": ["--access-mode", "unrestricted"],
+      "env": {
+        "DATABASE_URI": "${DATABASE_URI}"
+      }
+    },
+    "git-mcp": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:5173"
+      }
+    }
+  }
+}

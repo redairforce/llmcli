@@ -1,0 +1,149 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "llmdev.fullname" . }}-ssh-setup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "llmdev.labels" . | nindent 4 }}
+data:
+  setup-ssh.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "🔐 Setting up SSH configuration for user abc"
+    
+    # Ensure user abc home directory exists
+    if [ ! -d "/config" ]; then
+        echo "⚠️  /config directory not found, creating..."
+        mkdir -p /config
+        chown -R abc:abc /config
+    fi
+    
+    # Create SSH directory structure
+    SSH_DIR="/config/.ssh"
+    mkdir -p "$SSH_DIR"
+    
+    # Set proper ownership first
+    chown -R abc:abc "$SSH_DIR"
+    
+    # Set directory permissions (must be done after ownership)
+    chmod 700 "$SSH_DIR"
+    
+    # Create authorized_keys file from secret
+    AUTHORIZED_KEYS_FILE="$SSH_DIR/authorized_keys"
+    
+    # Initialize authorized_keys file
+    > "$AUTHORIZED_KEYS_FILE"
+    
+    # Add SSH public key from secret if available
+    if [ -n "$SSH_PUBLIC_KEY" ]; then
+        echo "✅ Adding SSH public key from secret"
+        echo "$SSH_PUBLIC_KEY" >> "$AUTHORIZED_KEYS_FILE"
+    fi
+    
+    {{- if .Values.ssh.authorizedKeys }}
+    # Add additional SSH keys from values if specified
+    {{- range .Values.ssh.authorizedKeys }}
+    echo "✅ Adding SSH key from values: {{ . | quote }}"
+    echo {{ . | quote }} >> "$AUTHORIZED_KEYS_FILE"
+    {{- end }}
+    {{- end }}
+    
+    # Set proper file permissions and ownership
+    chown abc:abc "$AUTHORIZED_KEYS_FILE"
+    chmod 600 "$AUTHORIZED_KEYS_FILE"
+    
+    # Verify setup
+    if [ -s "$AUTHORIZED_KEYS_FILE" ]; then
+        KEY_COUNT=$(wc -l < "$AUTHORIZED_KEYS_FILE")
+        echo "✅ SSH setup complete: $KEY_COUNT key(s) configured"
+        echo "🔍 SSH directory permissions:"
+        ls -la "$SSH_DIR/"
+    else
+        echo "⚠️  Warning: No SSH keys were added to authorized_keys"
+    fi
+    
+    # Ensure environment variables are available in SSH sessions
+    echo "🌍 Setting up environment variables for SSH sessions"
+    
+    # Create profile script for SSH sessions
+    mkdir -p /etc/profile.d
+    cat > /etc/profile.d/ssh-env.sh << 'ENV_EOF'
+    # SSH session environment setup for LLMCLI
+    
+    # Add npm global binaries to PATH
+    export PATH="/config/.npm-global/bin:$PATH"
+    
+    # Import API keys and environment variables from container environment
+    if [ -f /tmp/container-env ]; then
+        source /tmp/container-env
+    fi
+    
+    # Additional tool paths
+    export PATH="/config/.local/bin:$PATH"
+    
+    # Verify tools are available
+    if command -v claude-code >/dev/null 2>&1; then
+        export CLAUDE_CLI_AVAILABLE="true"
+    fi
+    
+    if command -v goose >/dev/null 2>&1; then
+        export GOOSE_CLI_AVAILABLE="true"
+    fi
+    ENV_EOF
+    
+    # Make profile script executable
+    chmod 755 /etc/profile.d/ssh-env.sh
+    
+    # Update abc user's shell configuration to source the profile
+    ABC_BASHRC="/config/.bashrc"
+    if [ ! -f "$ABC_BASHRC" ]; then
+        echo "📝 Creating .bashrc for user abc"
+        cat > "$ABC_BASHRC" << 'BASHRC_EOF'
+    # .bashrc for user abc - LLMCLI SSH sessions
+    
+    # Source system profile
+    if [ -f /etc/profile ]; then
+        source /etc/profile
+    fi
+    
+    # Source profile scripts
+    for script in /etc/profile.d/*.sh; do
+        if [ -r "$script" ]; then
+            source "$script"
+        fi
+    done
+    
+    # Interactive shell setup
+    if [ "$PS1" ]; then
+        # Set a nice prompt
+        export PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        
+        # Common aliases
+        alias ll='ls -alF'
+        alias la='ls -A'
+        alias l='ls -CF'
+        
+        # Change to /appdata on SSH login (projects directory)
+        if [ "$PWD" = "/config" ] || [ "$PWD" = "$HOME" ]; then
+            if [ -d "/appdata" ]; then
+                cd /appdata
+                echo "📁 Starting in projects directory: /appdata"
+            fi
+        fi
+        
+        # Tool availability check
+        echo "🚀 LLMCLI Development Environment"
+        if [ "$CLAUDE_CLI_AVAILABLE" = "true" ]; then
+            echo "✅ Claude CLI: $(claude-code --version 2>/dev/null || echo 'Available')"
+        fi
+        if [ "$GOOSE_CLI_AVAILABLE" = "true" ]; then
+            echo "✅ Goose CLI: $(goose --version 2>/dev/null || echo 'Available')"
+        fi
+        echo "📁 Working directory: $(pwd)"
+    fi
+    BASHRC_EOF
+        chown abc:abc "$ABC_BASHRC"
+    fi
+    
+    echo "✅ SSH and environment setup completed successfully"
