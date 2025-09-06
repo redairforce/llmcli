@@ -30,28 +30,7 @@ spec:
       {{- end }}
       securityContext:
         fsGroup: {{ .Values.user.gid }}
-      initContainers:
-        # Initialize home directory with proper permissions
-        - name: init-home
-          image: busybox:1.35
-          command:
-            - /bin/sh
-            - -c
-            - |
-              mkdir -p /config/.ssh /config/.config
-              # Fix ownership of entire config directory including existing files
-              chown -R {{ .Values.user.uid }}:{{ .Values.user.gid }} /config
-              chmod 700 /config/.ssh
-              # Ensure SSH authorized_keys has correct permissions if it exists
-              if [ -f /config/.ssh/authorized_keys ]; then
-                chmod 600 /config/.ssh/authorized_keys
-                chown {{ .Values.user.uid }}:{{ .Values.user.gid }} /config/.ssh/authorized_keys
-              fi
-          volumeMounts:
-            - name: home-storage
-              mountPath: /config
-          securityContext:
-            runAsUser: 0
+      # Note: Removed init container - LinuxServer.io handles directory setup via s6-overlay
       containers:
         # Main Claude Code development container
         - name: llmdev

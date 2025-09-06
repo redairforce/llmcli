@@ -52,7 +52,7 @@ install_python_mcp() {
 echo "📦 Installing core MCP servers..."
 
 # NPM-based servers
-install_npm_mcp "mcp-server-perplexity-ask" "0.1.3"
+install_npm_mcp "server-perplexity-ask" "0.1.3"
 install_npm_mcp "mcp-server-kubernetes" "2.9.0" 
 install_npm_mcp "@executeautomation/playwright-mcp-server" "latest"
 install_npm_mcp "repomix" "latest"

@@ -15,7 +15,8 @@ data:
     PermitRootLogin {{ .Values.ssh.permitRootLogin }}
     PasswordAuthentication {{ .Values.ssh.passwordAuthentication }}
     PubkeyAuthentication yes
-    AuthorizedKeysFile /config/.ssh/authorized_keys
+    AuthorizedKeysFile /home/abc/.ssh/authorized_keys /config/.ssh/authorized_keys
+    StrictModes no
     UseDNS no
     X11Forwarding yes
     PrintMotd no
@@ -26,10 +27,20 @@ data:
     #!/usr/bin/with-contenv bash
     echo "🚀 Setting up development environment..."
     chown -R abc:abc /config/
-    mkdir -p /config/.npm-global
+    mkdir -p /config/.npm-global /home/abc/.ssh /config/.ssh
+    
+    # Setup SSH key
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1xU+Gx8Or+/L5o9shbJ/I4CjkSd7ogQ1zzjg74tdAx test-key-for-llmcli" > /home/abc/.ssh/authorized_keys
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1xU+Gx8Or+/L5o9shbJ/I4CjkSd7ogQ1zzjg74tdAx test-key-for-llmcli" > /config/.ssh/authorized_keys
+    chmod 700 /home/abc/.ssh /config/.ssh
+    chmod 600 /home/abc/.ssh/authorized_keys /config/.ssh/authorized_keys
+    chown -R abc:abc /home/abc/.ssh
     if [ ! -f /config/.npm-global/.initialized ]; then
       su abc -c "npm config set prefix /config/.npm-global"
+      echo "📦 Installing Claude CLI..."
+      su abc -c "npm install -g @anthropic-ai/claude-code"
       touch /config/.npm-global/.initialized
+      echo "✅ Claude CLI installed successfully"
     fi
     
     echo "🔧 Exporting environment variables for SSH sessions..."
@@ -80,6 +91,27 @@ data:
         echo '    cd /appdata' >> /config/.bashrc
         echo '    echo "📁 Starting in projects directory: /appdata"' >> /config/.bashrc
         echo 'fi' >> /config/.bashrc
+    fi
+    
+    # Fix MCP server installation (runtime fix for container)
+    echo "🔧 Installing missing MCP servers..."
+    if [ ! -f /config/.npm-global/bin/mcp-server-perplexity-ask ]; then
+        echo "📦 Installing correct perplexity-ask package..."
+        su abc -c "npm install -g server-perplexity-ask"
+    fi
+    
+    # Setup MCP configuration for project  
+    if [ -f /appdata/projects/llmcli/.mcp.json.template ]; then
+        echo "🔧 Setting up MCP configuration from template..."
+        # Export environment variables for substitution
+        export WIKIJS_API_URL="${WIKIJS_API_URL:-https://docs.williamchambless.com}"
+        export WIKIJS_TOKEN="${WIKIJS_TOKEN}"
+        export GITHUB_TOKEN="${GITHUB_TOKEN}"
+        
+        # Substitute variables and create config
+        envsubst < /appdata/projects/llmcli/.mcp.json.template > /appdata/projects/llmcli/.mcp.json
+        chown abc:abc /appdata/projects/llmcli/.mcp.json
+        echo "✅ MCP configuration ready"
     fi
     
     echo "✅ Development environment ready!"

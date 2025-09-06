@@ -23,7 +23,7 @@ user:
 # === SSH CONFIGURATION ===
 ssh:
   permitRootLogin: "no"
-  passwordAuthentication: "no"
+  passwordAuthentication: "yes"
   # NOTE: SSH public key is automatically injected from secrets (ssh-public-key)
   # Additional SSH keys can be added here for multiple access methods
   authorizedKeys: []
@@ -172,7 +172,8 @@ minioCli:
   forceUpdate: false
 
 # === PLACEMENT ===
-nodeSelector: {}
+nodeSelector:
+  kubernetes.io/hostname: node02
 tolerations: []
 affinity: {}
 

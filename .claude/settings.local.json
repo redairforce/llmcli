@@ -24,13 +24,20 @@
       "Bash(helm package:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(kubectl exec:*)",
-      "Bash(./velero restore get)"
+      "Bash(./velero restore get)",
+      "mcp__playwright-mcp-server__playwright_navigate",
+      "mcp__playwright-mcp-server__playwright_screenshot",
+      "mcp__playwright-mcp-server__playwright_get_visible_text",
+      "mcp__playwright-mcp-server__playwright_get_visible_html",
+      "mcp__playwright-mcp-server__playwright_click",
+      "mcp__playwright-mcp-server__playwright_close"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "perplexity-ask",
+    "github",
     "wikijs",
     "playwright-mcp-server",
     "zen-mcp-server",

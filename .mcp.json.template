@@ -1,16 +1,5 @@
 {
   "mcpServers": {
-    "perplexity-ask": {
-      "command": "/config/.npm-global/bin/mcp-server-perplexity-ask",
-      "args": []
-    },
-    "github": {
-      "command": "/usr/local/bin/github-mcp-server",
-      "args": ["stdio"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-      }
-    },
     "wikijs": {
       "command": "/config/.npm-global/bin/wikijs-mcp",
       "args": ["server"],
@@ -21,7 +10,7 @@
       }
     },
     "playwright-mcp-server": {
-      "command": "/config/.npm-global/bin/mcp-server-playwright",
+      "command": "/config/.npm-global/bin/playwright-mcp-server",
       "args": []
     },
     "zen-mcp-server": {
@@ -36,31 +25,29 @@
       "args": []
     },
     "repomix": {
-      "command": "/config/.npm-global/bin/repomix",
+      "command": "repomix",
       "args": ["--mcp"]
     },
     "desktop-commander": {
-      "command": "/config/.npm-global/bin/desktop-commander",
+      "command": "npx",
+      "args": ["-y", "@wonderwhy-er/desktop-commander@latest"]
+    },
+    "perplexity-ask": {
+      "command": "/config/.npm-global/bin/mcp-server-perplexity-ask",
       "args": []
     },
-    "context7": {
-      "command": "/config/.npm-global/bin/context7-mcp",
-      "args": [],
+    "github": {
+      "command": "/usr/local/bin/github-mcp-server",
+      "args": ["stdio"],
       "env": {
-        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     },
-    "postgres": {
+    "postgres-mcp": {
       "command": "/config/.local/bin/postgres-mcp",
-      "args": ["--access-mode", "unrestricted"],
+      "args": ["--access-mode=unrestricted"],
       "env": {
-        "DATABASE_URI": "${DATABASE_URI}"
-      }
-    },
-    "git-mcp": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:5173"
+        "DATABASE_URI": "postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql.arr.svc.cluster.local:5432/postgres"
       }
     }
   }
