@@ -53,7 +53,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.updated  # Use the standardized Dockerfile
+        file: ./Dockerfile
         platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
@@ -61,5 +61,5 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Generate image digest
-      run: echo "Image pushed with tags: ${{ steps.meta.outputs.tags }}"
+  - name: Generate image digest
+    run: echo "Image pushed with tags: ${{ steps.meta.outputs.tags }}"
