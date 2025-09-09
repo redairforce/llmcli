@@ -130,8 +130,6 @@ spec:
                   name: {{ .Values.secretReferences.devApiKeys }}
                   key: context7-api-key
             # PostgreSQL MCP Configuration
-            - name: DATABASE_URI
-              value: "postgresql://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@postgresql.arr.svc.cluster.local:5432/postgres"
             - name: POSTGRES_USERNAME
               valueFrom:
                 secretKeyRef:

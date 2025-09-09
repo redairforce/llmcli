@@ -33,9 +33,9 @@ export PERPLEXITY_API_KEY="${PERPLEXITY_API_KEY}"
 export CONTEXT7_API_KEY="${CONTEXT7_API_KEY}"
 
 # PostgreSQL MCP Configuration
-export DATABASE_URI="${DATABASE_URI}"
 export POSTGRES_USERNAME="${POSTGRES_USERNAME}"
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+export DATABASE_URI="postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql.arr.svc.cluster.local:5432/postgres"
 
 # MCP and development environment
 export HOME="/config"
