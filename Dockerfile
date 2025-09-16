@@ -161,8 +161,8 @@ RUN npm install -g playwright@1.55.0
 # Fix Python externally-managed environment issue (Ubuntu 24.04 PEP 668)
 RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
 
-# Upgrade pip first to ensure we have the latest version
-RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
+# Upgrade pip and setuptools (skip wheel as it's managed by apt)
+RUN pip3 install --no-cache-dir --upgrade --break-system-packages pip setuptools
 
 # Install Python development tools - split to isolate failures
 # Install uv first as it's a package manager
