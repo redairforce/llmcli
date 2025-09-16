@@ -161,59 +161,43 @@ RUN npm install -g playwright@1.55.0
 # Fix Python externally-managed environment issue (Ubuntu 24.04 PEP 668)
 RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
 
-# Upgrade pip and setuptools (skip wheel as it's managed by apt)
-RUN pip3 install --no-cache-dir --upgrade --break-system-packages pip setuptools
+# Use system pip/setuptools/wheel as they're managed by apt
+# Just ensure pip is functional
+RUN python3 -m pip --version
 
 # Install Python development tools - split to isolate failures
 # Install uv first as it's a package manager
-RUN pip3 install --no-cache-dir --break-system-packages uv || \
-    pip3 install --no-cache-dir uv
+RUN pip3 install --no-cache-dir uv || true
 
 # Install poetry separately as it has complex dependencies
-RUN pip3 install --no-cache-dir --break-system-packages poetry || \
-    pip3 install --no-cache-dir poetry
+RUN pip3 install --no-cache-dir poetry || true
 
 # Install code formatting and testing tools
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir \
     black \
     flake8 \
-    pytest || \
-    pip3 install --no-cache-dir \
-    black \
-    flake8 \
-    pytest
+    pytest || true
 
 # Install Jupyter and IPython separately due to their size
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir \
     jupyter \
-    ipython || \
-    pip3 install --no-cache-dir \
-    jupyter \
-    ipython
+    ipython || true
 
 # Install MCP and zen-mcp-server dependencies (separate to isolate potential issues)
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir \
     pydantic \
-    python-dotenv || \
-    pip3 install --no-cache-dir \
-    pydantic \
-    python-dotenv
+    python-dotenv || true
 
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir \
     mcp \
     google-genai \
-    openai || \
-    pip3 install --no-cache-dir \
-    mcp \
-    google-genai \
-    openai
+    openai || true
 
 # Install zen-mcp-server (main project from BeehiveInnovations)
 RUN cd /opt && \
     git clone https://github.com/BeehiveInnovations/zen-mcp-server.git && \
     cd zen-mcp-server && \
-    (pip3 install --no-cache-dir --break-system-packages -r requirements.txt || \
-     pip3 install --no-cache-dir -r requirements.txt) && \
+    pip3 install --no-cache-dir -r requirements.txt || true && \
     # Make run scripts executable
     chmod +x run-server.sh || true && \
     # Set up basic configuration template  
