@@ -161,21 +161,49 @@ RUN npm install -g playwright@1.55.0
 # Fix Python externally-managed environment issue (Ubuntu 24.04 PEP 668)
 RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
 
-# Install Python development tools
-RUN pip3 install --no-cache-dir \
-    poetry \
+# Upgrade pip first to ensure we have the latest version
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install Python development tools - split to isolate failures
+# Install uv first as it's a package manager
+RUN pip3 install --no-cache-dir --break-system-packages uv || \
+    pip3 install --no-cache-dir uv
+
+# Install poetry separately as it has complex dependencies
+RUN pip3 install --no-cache-dir --break-system-packages poetry || \
+    pip3 install --no-cache-dir poetry
+
+# Install code formatting and testing tools
+RUN pip3 install --no-cache-dir --break-system-packages \
     black \
     flake8 \
-    pytest \
+    pytest || \
+    pip3 install --no-cache-dir \
+    black \
+    flake8 \
+    pytest
+
+# Install Jupyter and IPython separately due to their size
+RUN pip3 install --no-cache-dir --break-system-packages \
     jupyter \
-    ipython \
-    uv
+    ipython || \
+    pip3 install --no-cache-dir \
+    jupyter \
+    ipython
 
 # Install MCP and zen-mcp-server dependencies (separate to isolate potential issues)
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
     pydantic \
-    python-dotenv \
-    && pip3 install --no-cache-dir \
+    python-dotenv || \
+    pip3 install --no-cache-dir \
+    pydantic \
+    python-dotenv
+
+RUN pip3 install --no-cache-dir --break-system-packages \
+    mcp \
+    google-genai \
+    openai || \
+    pip3 install --no-cache-dir \
     mcp \
     google-genai \
     openai
@@ -184,11 +212,12 @@ RUN pip3 install --no-cache-dir \
 RUN cd /opt && \
     git clone https://github.com/BeehiveInnovations/zen-mcp-server.git && \
     cd zen-mcp-server && \
-    pip3 install -r requirements.txt && \
+    (pip3 install --no-cache-dir --break-system-packages -r requirements.txt || \
+     pip3 install --no-cache-dir -r requirements.txt) && \
     # Make run scripts executable
-    chmod +x run-server.sh && \
+    chmod +x run-server.sh || true && \
     # Set up basic configuration template  
-    cp .env.example .env && \
+    cp .env.example .env || true && \
     # Create convenient symlink
     ln -s /opt/zen-mcp-server /usr/local/share/zen-mcp-server
 
