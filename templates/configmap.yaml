@@ -29,12 +29,18 @@ data:
     chown -R abc:abc /config/
     mkdir -p /config/.npm-global /home/abc/.ssh /config/.ssh
     
-    # Setup SSH key
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1xU+Gx8Or+/L5o9shbJ/I4CjkSd7ogQ1zzjg74tdAx test-key-for-llmcli" > /home/abc/.ssh/authorized_keys
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1xU+Gx8Or+/L5o9shbJ/I4CjkSd7ogQ1zzjg74tdAx test-key-for-llmcli" > /config/.ssh/authorized_keys
-    chmod 700 /home/abc/.ssh /config/.ssh
-    chmod 600 /home/abc/.ssh/authorized_keys /config/.ssh/authorized_keys
-    chown -R abc:abc /home/abc/.ssh
+    # Setup SSH key from secret
+    if [ -n "$SSH_PUBLIC_KEY" ]; then
+      echo "🔑 Setting up SSH key from secret..."
+      echo "$SSH_PUBLIC_KEY" > /home/abc/.ssh/authorized_keys
+      echo "$SSH_PUBLIC_KEY" > /config/.ssh/authorized_keys
+      chmod 700 /home/abc/.ssh /config/.ssh
+      chmod 600 /home/abc/.ssh/authorized_keys /config/.ssh/authorized_keys
+      chown -R abc:abc /home/abc/.ssh
+      echo "✅ SSH key configured"
+    else
+      echo "⚠️  No SSH_PUBLIC_KEY environment variable found"
+    fi
     if [ ! -f /config/.npm-global/.initialized ]; then
       su abc -c "npm config set prefix /config/.npm-global"
       echo "📦 Installing Claude CLI..."
@@ -58,8 +64,12 @@ data:
       echo "export OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\""
       
       echo "export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\""
-
       echo "export PERPLEXITY_API_KEY=\"$PERPLEXITY_API_KEY\""
+      echo "export CONTEXT7_API_KEY=\"$CONTEXT7_API_KEY\""
+      echo "export POSTGRES_USERNAME=\"$POSTGRES_USERNAME\""
+      echo "export POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\""
+      echo "export WIKIJS_API_URL=\"$WIKIJS_API_URL\""
+      echo "export WIKIJS_TOKEN=\"$WIKIJS_TOKEN\""
       echo "export PATH=\"/config/.npm-global/bin:$PATH\""
     } > /tmp/container-env
     chmod 644 /tmp/container-env
@@ -100,14 +110,73 @@ data:
         su abc -c "npm install -g server-perplexity-ask"
     fi
     
-    # Setup MCP configuration for project  
+    # Setup kubeconfig from service account
+    if [ -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+        echo "🔧 Setting up kubectl with service account..."
+        mkdir -p /config/.kube
+        cat > /config/.kube/config << 'KUBEEOF'
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - cluster:
+        certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        server: https://kubernetes.default.svc
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: $(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+        user: default-user
+      name: default-context
+    current-context: default-context
+    users:
+    - name: default-user
+      user:
+        token: $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    KUBEEOF
+        chown abc:abc /config/.kube/config
+        chmod 600 /config/.kube/config
+        echo "✅ kubectl configured successfully"
+    fi
+
+    # Install Goose CLI
+    if [ ! -f /config/.local/bin/goose ]; then
+        echo "📦 Installing Goose CLI..."
+        GOOSE_VERSION="1.7.0"
+        GOOSE_ARCH="x86_64-unknown-linux-gnu"
+        GOOSE_URL="https://github.com/block/goose/releases/download/v${GOOSE_VERSION}/goose-${GOOSE_ARCH}.tar.bz2"
+
+        su abc -c "
+            cd /config
+            mkdir -p .local/bin
+            curl -fsSL '${GOOSE_URL}' -o goose.tar.bz2
+            tar -xjf goose.tar.bz2
+            mv goose .local/bin/
+            chmod +x .local/bin/goose
+            rm goose.tar.bz2
+        "
+        echo "✅ Goose CLI installed"
+    fi
+
+    # Install Gemini CLI (Google GenAI SDK)
+    if ! su abc -c "npm list -g @google/genai" >/dev/null 2>&1; then
+        echo "📦 Installing Google GenAI SDK..."
+        su abc -c "npm install -g @google/genai@1.17.0"
+        echo "✅ Google GenAI SDK installed"
+    fi
+
+    # Setup MCP configuration for project
     if [ -f /appdata/projects/llmcli/.mcp.json.template ]; then
         echo "🔧 Setting up MCP configuration from template..."
-        # Export environment variables for substitution
+        # Export all required environment variables for substitution
         export WIKIJS_API_URL="${WIKIJS_API_URL:-https://docs.williamchambless.com}"
         export WIKIJS_TOKEN="${WIKIJS_TOKEN}"
         export GITHUB_TOKEN="${GITHUB_TOKEN}"
-        
+        export CONTEXT7_API_KEY="${CONTEXT7_API_KEY}"
+        export POSTGRES_USERNAME="${POSTGRES_USERNAME}"
+        export POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+        export HOMARR_API_KEY="${HOMARR_API_KEY:-}"
+
         # Substitute variables and create config
         envsubst < /appdata/projects/llmcli/.mcp.json.template > /appdata/projects/llmcli/.mcp.json
         chown abc:abc /appdata/projects/llmcli/.mcp.json

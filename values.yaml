@@ -54,11 +54,11 @@ storage:
 resources:
   main:
     limits:
-      cpu: 4000m
-      memory: 8Gi
+      cpu: 6000m
+      memory: 12Gi
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 2Gi
 
 
 # Security configuration
@@ -73,6 +73,10 @@ serviceAccount:
 # This follows the infrastructure pattern used by other applications
 secretReferences:
   devApiKeys: "dev-api-keys"  # External secret containing development tokens
+
+# Logging configuration
+logging:
+  level: "INFO"
 
 # Node selector
 nodeSelector: {}

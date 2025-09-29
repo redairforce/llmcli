@@ -13,7 +13,15 @@
       "command": "/config/.npm-global/bin/playwright-mcp-server",
       "args": []
     },
-    "zen-mcp-server": {
+    "homarr-mcp": {
+      "command": "node",
+      "args": ["/appdata/projects/homarr-mcp/dist/index.js"],
+      "env": {
+        "HOMARR_BASE_URL": "https://homarr.williamchambless.com",
+        "HOMARR_API_KEY": "${HOMARR_API_KEY}"
+      }
+    },
+    "zen": {
       "command": "python3",
       "args": ["/opt/zen-mcp-server/server.py"],
       "env": {
@@ -48,6 +56,13 @@
       "args": ["--access-mode=unrestricted"],
       "env": {
         "DATABASE_URI": "postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql.arr.svc.cluster.local:5432/postgres"
+      }
+    },
+    "context7": {
+      "command": "/config/.npm-global/bin/context7-mcp",
+      "args": [],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
       }
     }
   }
